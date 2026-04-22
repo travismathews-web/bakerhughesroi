@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Baker Hughes × Agentforce — Cost Transformation Analysis</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e14;
+    --bg2: #0f1520;
+    --bg3: #141c2e;
+    --surface: #1a2438;
+    --surface2: #1f2d45;
+    --border: rgba(255,255,255,0.07);
+    --accent: #00c2ff;
+    --accent2: #0070f3;
+    --accent3: #00e5a0;
+    --red: #ff4d6d;
+    --text: #e8edf5;
+    --text2: #8896ab;
+    --text3: #556070;
+    --bh-red: #d4002a;
+    --sf-blue: #0070f3;
+    --display: 'Bebas Neue', sans-serif;
+    --body: 'DM Sans', sans-serif;
+    --mono: 'DM Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body);
+    font-weight: 300;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* NOISE OVERLAY */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.4;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 48px;
+    background: rgba(10,14,20,0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-logos {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .logo-bh {
+    font-family: var(--display);
+    font-size: 22px;
+    letter-spacing: 3px;
+    color: var(--text);
+  }
+
+  .logo-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+  }
+
+  .logo-sf {
+    font-family: var(--display);
+    font-size: 18px;
+    letter-spacing: 2px;
+    color: var(--accent);
+  }
+
+  .nav-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .assumption-badge {
+    background: rgba(255,77,109,0.1);
+    border: 1px solid rgba(255,77,109,0.3);
+    color: var(--red);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    padding: 6px 14px;
+    border-radius: 2px;
+    text-transform: uppercase;
+  }
+
+  /* HERO */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 140px 48px 80px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,194,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,194,255,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+
+  .hero-glow {
+    position: absolute;
+    top: -200px;
+    right: -200px;
+    width: 800px;
+    height: 800px;
+    background: radial-gradient(circle, rgba(0,112,243,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-glow2 {
+    position: absolute;
+    bottom: -100px;
+    left: -100px;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(0,229,160,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-content {
+    position: relative;
+    max-width: 1200px;
+  }
+
+  .hero-eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .hero-eyebrow::before {
+    content: '';
+    width: 40px;
+    height: 1px;
+    background: var(--accent);
+  }
+
+  .hero-headline {
+    font-family: var(--display);
+    font-size: clamp(64px, 9vw, 130px);
+    line-height: 0.92;
+    letter-spacing: 2px;
+    margin-bottom: 32px;
+    color: var(--text);
+  }
+
+  .hero-headline span {
+    color: var(--accent);
+    display: block;
+  }
+
+  .hero-sub {
+    font-size: 18px;
+    color: var(--text2);
+    max-width: 580px;
+    margin-bottom: 60px;
+    font-weight: 300;
+    line-height: 1.7;
+  }
+
+  .hero-number-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+    max-width: 900px;
+  }
+
+  .hero-stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 32px;
+    position: relative;
+    overflow: hidden;
+    animation: fadeUp 0.8s ease forwards;
+    opacity: 0;
+  }
+
+  .hero-stat:nth-child(1) { animation-delay: 0.2s; }
+  .hero-stat:nth-child(2) { animation-delay: 0.35s; border-left: 2px solid var(--accent); }
+  .hero-stat:nth-child(3) { animation-delay: 0.5s; }
+
+  .hero-stat::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .hero-stat:hover::after { opacity: 1; }
+
+  .stat-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--text3);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .stat-value {
+    font-family: var(--display);
+    font-size: 52px;
+    line-height: 1;
+    color: var(--text);
+    letter-spacing: 1px;
+  }
+
+  .stat-value.green { color: var(--accent3); }
+  .stat-value.blue { color: var(--accent); }
+
+  .stat-sub {
+    font-size: 12px;
+    color: var(--text3);
+    margin-top: 8px;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* SECTIONS */
+  section {
+    padding: 100px 48px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .section-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 4px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .section-label::before {
+    content: '';
+    width: 24px;
+    height: 1px;
+    background: var(--accent);
+  }
+
+  .section-title {
+    font-family: var(--display);
+    font-size: clamp(36px, 5vw, 64px);
+    line-height: 1;
+    letter-spacing: 1px;
+    margin-bottom: 20px;
+  }
+
+  .section-desc {
+    font-size: 16px;
+    color: var(--text2);
+    max-width: 560px;
+    line-height: 1.7;
+    margin-bottom: 60px;
+  }
+
+  /* DIVIDER */
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+    margin: 0 48px;
+  }
+
+  /* ASSUMPTIONS */
+  .assumptions-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2px;
+  }
+
+  .assumption-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 28px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.2s;
+  }
+
+  .assumption-card:hover { background: var(--surface2); }
+
+  .assumption-name {
+    font-size: 14px;
+    color: var(--text2);
+    font-weight: 400;
+  }
+
+  .assumption-val {
+    font-family: var(--mono);
+    font-size: 16px;
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .assumption-note {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    margin-top: 4px;
+    text-align: right;
+  }
+
+  /* LICENSING TABLE */
+  .license-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+
+  .license-table th {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--text3);
+    text-transform: uppercase;
+    text-align: left;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .license-table td {
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text2);
+  }
+
+  .license-table tr:last-child td { border-bottom: none; }
+
+  .license-table .highlight td {
+    background: rgba(0,194,255,0.04);
+    color: var(--text);
+  }
+
+  .license-table .total-row td {
+    font-weight: 600;
+    color: var(--text);
+    font-size: 15px;
+    border-top: 1px solid var(--border);
+    padding-top: 24px;
+  }
+
+  .strike {
+    text-decoration: line-through;
+    color: var(--text3);
+    font-size: 12px;
+    margin-right: 8px;
+  }
+
+  .discounted {
+    color: var(--accent3);
+    font-weight: 500;
+  }
+
+  /* SAVINGS BREAKDOWN */
+  .savings-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+    margin-bottom: 2px;
+  }
+
+  .savings-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 32px;
+  }
+
+  .savings-priority {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--text3);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .savings-tickets {
+    font-family: var(--display);
+    font-size: 36px;
+    color: var(--text);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .savings-action {
+    font-size: 13px;
+    color: var(--text2);
+    margin-bottom: 20px;
+  }
+
+  .savings-amount {
+    font-family: var(--mono);
+    font-size: 20px;
+    color: var(--accent3);
+    font-weight: 500;
+  }
+
+  .savings-amount.yellow { color: #f5c842; }
+  .savings-amount.blue { color: var(--accent); }
+
+  .pill {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    padding: 4px 10px;
+    border-radius: 2px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .pill-green { background: rgba(0,229,160,0.1); color: var(--accent3); border: 1px solid rgba(0,229,160,0.2); }
+  .pill-yellow { background: rgba(245,200,66,0.1); color: #f5c842; border: 1px solid rgba(245,200,66,0.2); }
+  .pill-blue { background: rgba(0,194,255,0.1); color: var(--accent); border: 1px solid rgba(0,194,255,0.2); }
+
+  /* ROI CHART */
+  .roi-chart-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 48px;
+  }
+
+  .chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 48px;
+  }
+
+  .chart-bars {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    align-items: end;
+    height: 280px;
+  }
+
+  .bar-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+    justify-content: flex-end;
+    gap: 12px;
+  }
+
+  .bar-wrap {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    flex: 1;
+    position: relative;
+  }
+
+  .bar-roi-label {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent3);
+    font-weight: 500;
+    position: absolute;
+    top: -24px;
+  }
+
+  .bar {
+    width: 100%;
+    border-radius: 2px 2px 0 0;
+    transition: opacity 0.2s;
+    position: relative;
+  }
+
+  .bar-cost {
+    background: linear-gradient(180deg, rgba(255,77,109,0.7), rgba(255,77,109,0.4));
+  }
+
+  .bar-savings {
+    background: linear-gradient(180deg, var(--accent), rgba(0,112,243,0.6));
+  }
+
+  .bar-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 1px;
+  }
+
+  .chart-legend {
+    display: flex;
+    gap: 24px;
+    margin-top: 32px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text3);
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+  }
+
+  /* YoY TABLE */
+  .yoy-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .yoy-table th {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text3);
+    text-align: left;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .yoy-table td {
+    padding: 20px 24px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 14px;
+    color: var(--text2);
+  }
+
+  .yoy-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .yoy-table .yr { font-family: var(--display); font-size: 20px; color: var(--text); }
+  .yoy-table .pos { color: var(--accent3); font-family: var(--mono); font-weight: 500; }
+  .yoy-table .neg { color: var(--red); font-family: var(--mono); }
+
+  .roi-bar-inline {
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent), var(--accent3));
+    border-radius: 2px;
+    margin-top: 6px;
+  }
+
+  /* SNOW SECTION */
+  .snow-compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+  }
+
+  .snow-col {
+    padding: 48px;
+  }
+
+  .snow-col.current {
+    background: rgba(255,77,109,0.05);
+    border: 1px solid rgba(255,77,109,0.15);
+  }
+
+  .snow-col.future {
+    background: rgba(0,194,255,0.05);
+    border: 1px solid rgba(0,194,255,0.15);
+  }
+
+  .snow-col-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-bottom: 32px;
+  }
+
+  .snow-col.current .snow-col-label { color: var(--red); }
+  .snow-col.future .snow-col-label { color: var(--accent); }
+
+  .snow-number {
+    font-family: var(--display);
+    font-size: 72px;
+    line-height: 1;
+    margin-bottom: 12px;
+  }
+
+  .snow-col.current .snow-number { color: var(--red); }
+  .snow-col.future .snow-number { color: var(--accent3); }
+
+  .snow-desc {
+    font-size: 14px;
+    color: var(--text3);
+    line-height: 1.6;
+  }
+
+  .snow-items {
+    margin-top: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .snow-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text2);
+  }
+
+  .snow-item::before {
+    content: '—';
+    color: var(--text3);
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .snow-item.pro::before { content: '✓'; color: var(--accent3); }
+
+  /* VALIDATE CTA */
+  .validate-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--accent);
+    padding: 64px 48px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 48px;
+  }
+
+  .validate-left { flex: 1; }
+
+  .validate-title {
+    font-family: var(--display);
+    font-size: 52px;
+    line-height: 1;
+    margin-bottom: 20px;
+  }
+
+  .validate-desc {
+    font-size: 15px;
+    color: var(--text2);
+    line-height: 1.7;
+    max-width: 500px;
+  }
+
+  .validate-right {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 280px;
+  }
+
+  .validate-items {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  .validate-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--text2);
+  }
+
+  .validate-item-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+  }
+
+  .cta-btn {
+    display: inline-block;
+    background: var(--accent);
+    color: var(--bg);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    padding: 16px 32px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: background 0.2s, transform 0.2s;
+    cursor: pointer;
+    border: none;
+  }
+
+  .cta-btn:hover { background: #33cfff; transform: translateY(-1px); }
+
+  .cta-secondary {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--text3);
+    text-transform: uppercase;
+    text-align: center;
+  }
+
+  /* FOOTER */
+  footer {
+    padding: 40px 48px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .footer-note {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    letter-spacing: 1px;
+    max-width: 600px;
+    line-height: 1.6;
+  }
+
+  .footer-stamp {
+    font-family: var(--display);
+    font-size: 18px;
+    letter-spacing: 4px;
+    color: var(--text3);
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    nav { padding: 16px 24px; }
+    .hero { padding: 120px 24px 60px; }
+    section { padding: 60px 24px; }
+    .divider { margin: 0 24px; }
+    .hero-number-row { grid-template-columns: 1fr; }
+    .assumptions-grid { grid-template-columns: 1fr; }
+    .savings-grid { grid-template-columns: 1fr; }
+    .snow-compare { grid-template-columns: 1fr; }
+    .validate-section { flex-direction: column; padding: 40px 24px; }
+    footer { flex-direction: column; gap: 16px; padding: 32px 24px; }
+  }
+
+  /* SCROLL ANIMATIONS */
+  .reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+  .reveal.visible {
+    opacity: 1;
+    transform: none;
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logos">
+    <div class="logo-bh">BAKER HUGHES</div>
+    <div class="logo-divider"></div>
+    <div class="logo-sf">AGENTFORCE</div>
+  </div>
+  <div class="nav-tag">Cost Transformation Analysis · 2025</div>
+  <div class="assumption-badge">⚠ Based on Assumptions — Pending Validation</div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-glow"></div>
+  <div class="hero-glow2"></div>
+  <div class="hero-content">
+    <div class="hero-eyebrow">Confidential Analysis · Baker Hughes × Salesforce</div>
+    <h1 class="hero-headline">
+      $70M+<br>
+      <span>IN RECOVERABLE</span>
+      COST.
+    </h1>
+    <p class="hero-sub">Based on current assumptions about Baker Hughes' IT and HR service operations, Agentforce stands to remove over $70 million in combined licensing and operational cost over five years — without replacing what's working.</p>
+
+    <div class="hero-number-row">
+      <div class="hero-stat">
+        <div class="stat-label">5-Year Net Value</div>
+        <div class="stat-value green">$34.8M</div>
+        <div class="stat-sub">after full investment</div>
+      </div>
+      <div class="hero-stat">
+        <div class="stat-label">Return on Investment</div>
+        <div class="stat-value blue">186%</div>
+        <div class="stat-sub">$2.86 back per $1 invested</div>
+      </div>
+      <div class="hero-stat">
+        <div class="stat-label">Break-Even</div>
+        <div class="stat-value">Year 2</div>
+        <div class="stat-sub">fully recovered by end of Y2</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ASSUMPTIONS -->
+<section class="reveal">
+  <div class="section-label">Section 01</div>
+  <h2 class="section-title">OUR ASSUMPTIONS</h2>
+  <p class="section-desc">This analysis is built on reasonable estimates for a company of Baker Hughes' scale. These are the numbers we want you to validate — tell us where we're off and we'll rerun everything.</p>
+
+  <div class="assumptions-grid">
+    <div class="assumption-card">
+      <div>
+        <div class="assumption-name">Total Employees (Requestors)</div>
+        <div class="assumption-note">Employee license holders</div>
+      </div>
+      <div style="text-align:right">
+        <div class="assumption-val">55,000</div>
+      </div>
+    </div>
+    <div class="assumption-card">
+      <div>
+        <div class="assumption-name">IT Service Desk Reps (Fulfillers)</div>
+        <div class="assumption-note">Active IT agents</div>
+      </div>
+      <div style="text-align:right">
+        <div class="assumption-val">500</div>
+      </div>
+    </div>
+    <div class="assumption-card">
+      <div>
+        <div class="assumption-name">HR Service Desk Reps (Fulfillers)</div>
+        <div class="assumption-note">Active HR agents</div>
+      </div>
+      <div style="text-align:right">
+        <div class="assumption-val">250</div>
+      </div>
+    </div>
+    <div class="assumption-card">
+      <div>
+        <div class="assumption-name">Annual Tickets Per Employee</div>
+        <div class="assumption-note">Industry benchmark</div>
+      </div>
+      <div style="text-align:right">
+        <div class="assumption-val">10</div>
+      </div>
+    </div>
+    <div class="assumption-card">
+      <div>
+        <div class="assumption-name">Total Annual Ticket Volume</div>
+        <div class="assumption-note">55,000 × 10</div>
+      </div>
+      <div style="text-align:right">
+        <div class="assumption-val">570,000</div>
+      </div>
+    </div>
+    <div class="assumption-card">
+      <div>
+        <div class="assumption-name">AI Deflection Rate (Low Priority)</div>
+        <div class="assumption-note">P4 tickets eliminated entirely</div>
+      </div>
+      <div style="text-align:right">
+        <div class="assumption-val">50%</div>
+        <div class="assumption-note">conservative estimate</div>
+      </div>
+    </div>
+    <div class="assumption-card">
+      <div>
+        <div class="assumption-name">AI Deflection Rate (Medium Priority)</div>
+        <div class="assumption-note">P3 tickets resolved without agent</div>
+      </div>
+      <div style="text-align:right">
+        <div class="assumption-val">25%</div>
+        <div class="assumption-note">conservative estimate</div>
+      </div>
+    </div>
+    <div class="assumption-card">
+      <div>
+        <div class="assumption-name">Agent Time Reduction (Remaining Tickets)</div>
+        <div class="assumption-note">Via AI augmentation</div>
+      </div>
+      <div style="text-align:right">
+        <div class="assumption-val">37.5%</div>
+        <div class="assumption-note">conservative estimate</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- LICENSING -->
+<section class="reveal">
+  <div class="section-label">Section 02</div>
+  <h2 class="section-title">LICENSING INVESTMENT</h2>
+  <p class="section-desc">Agentforce is priced on a requestor + fulfiller model. At Baker Hughes' scale, enterprise discounting reduces list price significantly. All tiers include Agentforce AI out of the box.</p>
+
+  <div style="background: var(--surface); border: 1px solid var(--border); overflow: hidden;">
+    <table class="license-table">
+      <thead>
+        <tr>
+          <th>License Type</th>
+          <th>Users</th>
+          <th>List Price</th>
+          <th>Est. Enterprise Discount</th>
+          <th>Discounted Price</th>
+          <th>Annual Cost</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Employee Requestor</td>
+          <td>55,000</td>
+          <td>$15 / user / mo</td>
+          <td>~70%</td>
+          <td><span class="discounted">$4.50 / user / mo</span></td>
+          <td><span class="discounted">$2,970,000</span></td>
+        </tr>
+        <tr>
+          <td>IT Service Desk (Fulfiller)</td>
+          <td>500</td>
+          <td>$275 / user / mo</td>
+          <td>~70%</td>
+          <td><span class="discounted">$82.50 / user / mo</span></td>
+          <td><span class="discounted">$495,000</span></td>
+        </tr>
+        <tr>
+          <td>HR Service Desk (Fulfiller)</td>
+          <td>250</td>
+          <td>$200 / user / mo</td>
+          <td>~70%</td>
+          <td><span class="discounted">$60.00 / user / mo</span></td>
+          <td><span class="discounted">$180,000</span></td>
+        </tr>
+        <tr class="total-row">
+          <td colspan="5"><strong>Total Annual Licensing</strong></td>
+          <td><strong style="color: var(--accent);">$3,645,000</strong></td>
+        </tr>
+        <tr class="total-row">
+          <td colspan="5">Implementation (One-Time)</td>
+          <td style="color: var(--text2);">$500,000</td>
+        </tr>
+        <tr class="total-row">
+          <td colspan="5"><strong>Total 5-Year Investment</strong></td>
+          <td><strong style="color: var(--accent);">~$18.7M</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="font-family: var(--mono); font-size: 10px; color: var(--text3); margin-top: 16px; letter-spacing: 1px;">* CMDB Enterprise pricing not included in this estimate. Scope pending discovery of configuration item inventory.</p>
+</section>
+
+<div class="divider"></div>
+
+<!-- SAVINGS -->
+<section class="reveal">
+  <div class="section-label">Section 03</div>
+  <h2 class="section-title">WHERE THE SAVINGS COME FROM</h2>
+  <p class="section-desc">570,000 annual tickets. Three levers. Agentforce attacks all of them simultaneously — deflecting routine requests, answering questions instantly, and accelerating everything that still needs a human.</p>
+
+  <div class="savings-grid">
+    <div class="savings-card">
+      <div class="pill pill-green">Full Deflection</div>
+      <div class="savings-priority">P4 Low Priority · 45% of Volume</div>
+      <div class="savings-tickets">256,500</div>
+      <div class="savings-action">tickets/year eliminated entirely by AI — no agent needed</div>
+      <div class="savings-amount">~$3.85M/yr saved</div>
+    </div>
+    <div class="savings-card">
+      <div class="pill pill-yellow">Partial Deflection</div>
+      <div class="savings-priority">P3 Medium Priority · 22% of Volume</div>
+      <div class="savings-tickets">62,700</div>
+      <div class="savings-action">tickets/year resolved without escalation via AI</div>
+      <div class="savings-amount yellow">~$1.57M/yr saved</div>
+    </div>
+    <div class="savings-card">
+      <div class="pill pill-blue">AI Augmentation</div>
+      <div class="savings-priority">P1–P2 + Planned Work · 33% of Volume</div>
+      <div class="savings-tickets">188,100</div>
+      <div class="savings-action">tickets handled faster — agents assisted by AI at every step</div>
+      <div class="savings-amount blue">~$5.30M/yr saved</div>
+    </div>
+  </div>
+
+  <div style="background: var(--surface); border: 1px solid var(--border); padding: 32px; margin-top: 2px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 24px;">
+    <div>
+      <div class="stat-label" style="margin-bottom: 8px;">Total Annual Operational Savings</div>
+      <div style="font-family: var(--display); font-size: 48px; color: var(--accent3);">$10.72M</div>
+    </div>
+    <div>
+      <div class="stat-label" style="margin-bottom: 8px;">5-Year Gross Savings</div>
+      <div style="font-family: var(--display); font-size: 48px; color: var(--text);">$53.5M</div>
+    </div>
+    <div>
+      <div class="stat-label" style="margin-bottom: 8px;">5-Year Net Value (after investment)</div>
+      <div style="font-family: var(--display); font-size: 48px; color: var(--accent);">$34.8M</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ROI CHART -->
+<section class="reveal">
+  <div class="section-label">Section 04</div>
+  <h2 class="section-title">5-YEAR ROI PROJECTION</h2>
+  <p class="section-desc">Investment is front-loaded. Returns compound. By Year 2, Baker Hughes is cash-flow positive on this investment.</p>
+
+  <div class="roi-chart-wrap">
+    <div class="chart-header">
+      <div>
+        <div class="stat-label">Cumulative ROI by Year 5</div>
+        <div style="font-family: var(--display); font-size: 64px; color: var(--accent3);">186%</div>
+      </div>
+      <div style="text-align: right;">
+        <div class="stat-label">For every $1 invested</div>
+        <div style="font-family: var(--display); font-size: 48px; color: var(--text);">$2.86 <span style="font-size: 24px; color: var(--text3);">returned</span></div>
+      </div>
+    </div>
+
+    <!-- Visual bar chart -->
+    <div class="chart-bars">
+      <!-- Y1 -->
+      <div class="bar-col">
+        <div class="bar-wrap">
+          <div class="bar-roi-label">61%</div>
+          <div class="bar bar-savings" style="height: 92px;"></div>
+          <div class="bar bar-cost" style="height: 62px;"></div>
+        </div>
+        <div class="bar-label">YEAR 1</div>
+      </div>
+      <!-- Y2 -->
+      <div class="bar-col">
+        <div class="bar-wrap">
+          <div class="bar-roi-label">107%</div>
+          <div class="bar bar-savings" style="height: 161px;"></div>
+          <div class="bar bar-cost" style="height: 54px;"></div>
+        </div>
+        <div class="bar-label">YEAR 2</div>
+      </div>
+      <!-- Y3 -->
+      <div class="bar-col">
+        <div class="bar-wrap">
+          <div class="bar-roi-label">140%</div>
+          <div class="bar bar-savings" style="height: 210px;"></div>
+          <div class="bar bar-cost" style="height: 54px;"></div>
+        </div>
+        <div class="bar-label">YEAR 3</div>
+      </div>
+      <!-- Y4 -->
+      <div class="bar-col">
+        <div class="bar-wrap">
+          <div class="bar-roi-label">163%</div>
+          <div class="bar bar-savings" style="height: 245px;"></div>
+          <div class="bar bar-cost" style="height: 54px;"></div>
+        </div>
+        <div class="bar-label">YEAR 4</div>
+      </div>
+      <!-- Y5 -->
+      <div class="bar-col">
+        <div class="bar-wrap">
+          <div class="bar-roi-label">186%</div>
+          <div class="bar bar-savings" style="height: 280px;"></div>
+          <div class="bar bar-cost" style="height: 54px;"></div>
+        </div>
+        <div class="bar-label">YEAR 5</div>
+      </div>
+    </div>
+
+    <div class="chart-legend">
+      <div class="legend-item">
+        <div class="legend-dot" style="background: var(--accent);"></div>
+        Cumulative Savings
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background: var(--red);"></div>
+        Cumulative Investment
+      </div>
+    </div>
+  </div>
+
+  <!-- YoY Table -->
+  <div style="background: var(--surface); border: 1px solid var(--border); margin-top: 2px; overflow: hidden;">
+    <table class="yoy-table">
+      <thead>
+        <tr>
+          <th>Year</th>
+          <th>Gross Savings</th>
+          <th>Annual Cost</th>
+          <th>Net Value</th>
+          <th>Cumulative ROI</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="yr">01</td>
+          <td>$10.72M</td>
+          <td class="neg">$4.14M</td>
+          <td class="pos">+$6.58M</td>
+          <td>
+            <span class="pos">61%</span>
+            <div class="roi-bar-inline" style="width: 33%;"></div>
+          </td>
+        </tr>
+        <tr>
+          <td class="yr">02</td>
+          <td>$10.72M</td>
+          <td class="neg">$3.64M</td>
+          <td class="pos">+$7.08M</td>
+          <td>
+            <span class="pos">107%</span>
+            <div class="roi-bar-inline" style="width: 57%;"></div>
+          </td>
+        </tr>
+        <tr>
+          <td class="yr">03</td>
+          <td>$10.72M</td>
+          <td class="neg">$3.64M</td>
+          <td class="pos">+$7.08M</td>
+          <td>
+            <span class="pos">140%</span>
+            <div class="roi-bar-inline" style="width: 75%;"></div>
+          </td>
+        </tr>
+        <tr>
+          <td class="yr">04</td>
+          <td>$10.72M</td>
+          <td class="neg">$3.64M</td>
+          <td class="pos">+$7.08M</td>
+          <td>
+            <span class="pos">163%</span>
+            <div class="roi-bar-inline" style="width: 88%;"></div>
+          </td>
+        </tr>
+        <tr>
+          <td class="yr">05</td>
+          <td>$10.72M</td>
+          <td class="neg">$3.64M</td>
+          <td class="pos">+$7.08M</td>
+          <td>
+            <span class="pos">186%</span>
+            <div class="roi-bar-inline" style="width: 100%;"></div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- SERVICENOW COMPARISON -->
+<section class="reveal">
+  <div class="section-label">Section 05 · Major Assumption</div>
+  <h2 class="section-title">THE SERVICENOW FACTOR</h2>
+  <p class="section-desc">This section is based on an assumption that Baker Hughes spends approximately $7M annually with ServiceNow. If accurate, the displacement story changes dramatically.</p>
+
+  <div class="snow-compare">
+    <div class="snow-col current">
+      <div class="snow-col-label">Current State · ServiceNow</div>
+      <div class="snow-number">$35M</div>
+      <div class="snow-desc">Estimated 5-year ServiceNow licensing spend — before partner costs, upgrade cycles, or internal admin overhead.</div>
+      <div class="snow-items">
+        <div class="snow-item">$7M/year in licensing (assumed)</div>
+        <div class="snow-item">Heavy SI partner dependency for upgrades and changes</div>
+        <div class="snow-item">Internal team resources absorbed by platform maintenance</div>
+        <div class="snow-item">AI limited to deflection — not true resolution</div>
+        <div class="snow-item">Separate modules = separate costs for ITSM, HRSD, ITOM</div>
+      </div>
+    </div>
+    <div class="snow-col future">
+      <div class="snow-col-label">Future State · Agentforce</div>
+      <div class="snow-number">$18.2M</div>
+      <div class="snow-desc">5-year Agentforce licensing at enterprise discount — IT, HR, and AI included. No separate module costs.</div>
+      <div class="snow-items">
+        <div class="snow-item pro">$3.64M/year — IT + HR + AI in one platform</div>
+        <div class="snow-item pro">No rip and replace required — phases in alongside existing stack</div>
+        <div class="snow-item pro">Native Salesforce platform — no added SI tax if already a customer</div>
+        <div class="snow-item pro">True end-to-end resolution, not just deflection</div>
+        <div class="snow-item pro">CMDB + Discovery + Service Graph included in IT Service Desk tier</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="background: var(--surface); border: 1px solid var(--border); border-top: 2px solid var(--accent3); padding: 40px 48px; margin-top: 2px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 32px;">
+      <div>
+        <div class="stat-label" style="margin-bottom: 8px;">License Savings vs. ServiceNow (5yr)</div>
+        <div style="font-family: var(--display); font-size: 52px; color: var(--accent3);">$16.8M</div>
+      </div>
+      <div>
+        <div class="stat-label" style="margin-bottom: 8px;">Operational Savings (5yr)</div>
+        <div style="font-family: var(--display); font-size: 52px; color: var(--text);">$53.5M</div>
+      </div>
+      <div style="background: rgba(0,229,160,0.08); border: 1px solid rgba(0,229,160,0.2); padding: 32px 40px;">
+        <div class="stat-label" style="margin-bottom: 8px;">Combined 5-Year Value</div>
+        <div style="font-family: var(--display); font-size: 64px; color: var(--accent3);">$70M+</div>
+        <div style="font-size: 12px; color: var(--text3); margin-top: 4px;">pending validation of ServiceNow spend</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- VALIDATE CTA -->
+<section style="padding: 80px 48px;">
+  <div class="validate-section reveal">
+    <div class="validate-left">
+      <div class="section-label" style="margin-bottom: 20px;">Next Step</div>
+      <div class="validate-title">TELL US WHERE<br>WE'RE WRONG.</div>
+      <p class="validate-desc">These numbers are built on assumptions. The real value of this exercise is getting them right. We're asking for 30 minutes — walk through the inputs with us, validate what's accurate, and we'll rebuild this with your actual data.</p>
+    </div>
+    <div class="validate-right">
+      <div>
+        <div class="section-label" style="margin-bottom: 16px;">What we want to validate</div>
+        <div class="validate-items">
+          <div class="validate-item"><div class="validate-item-dot"></div>Actual ServiceNow annual spend</div>
+          <div class="validate-item"><div class="validate-item-dot"></div>True IT and HR headcount</div>
+          <div class="validate-item"><div class="validate-item-dot"></div>Annual ticket volume by priority</div>
+          <div class="validate-item"><div class="validate-item-dot"></div>Current automation / deflection rate</div>
+          <div class="validate-item"><div class="validate-item-dot"></div>CMDB scope (CIs in use today)</div>
+          <div class="validate-item"><div class="validate-item-dot"></div>ServiceNow renewal timeline</div>
+        </div>
+      </div>
+      <button class="cta-btn" onclick="alert('Contact Travis Mathews or Jerry Birdwell to schedule your 30-minute validation session.')">Schedule 30-Min Validation</button>
+      <div class="cta-secondary">No commitment · Just the numbers</div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-note">
+    * All figures are estimates based on industry benchmarks and assumptions about Baker Hughes' operating environment. Actual savings will vary. This analysis is intended to facilitate a data validation conversation, not serve as a binding commercial proposal. CMDB enterprise pricing is not included in this estimate.
+  </div>
+  <div class="footer-stamp">BH × SF · 2025</div>
+</footer>
+
+<script>
+  // Scroll reveal
+  const reveals = document.querySelectorAll('.reveal');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.1 });
+  reveals.forEach(r => observer.observe(r));
+
+  // Animate stat values on scroll
+  function animateValue(el, start, end, duration, prefix = '', suffix = '') {
+    let startTime = null;
+    const step = (timestamp) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      el.textContent = prefix + Math.floor(eased * (end - start) + start).toLocaleString() + suffix;
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+</script>
+
+</body>
+</html>
